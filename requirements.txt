@@ -1,0 +1,10 @@
+PyYAML
+numpy
+pillow
+opencv-python
+cloudpickle
+joblib
+torch
+torchvision
+tqdm
+imgaug>=0.4.0

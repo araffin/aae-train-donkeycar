@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.json
+*.pkl
+.idea/
+logs/
+.ipynb_checkpoints/
+dist/*
+*.egg-info/*
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.pytype/
+
+
+# Sphinx documentation
+docs/_build/
