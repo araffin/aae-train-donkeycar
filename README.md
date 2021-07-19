@@ -2,6 +2,10 @@
 
 Code used to train an augmented auto-encoder (aka denoising auto-encoder with more augmentations) for the DonkeyCar simulator.
 
+Presentation: [Learning To Race in Hours](https://araffin.github.io/talk/learning-race/)
+
+![Augmented Auto-Encoder](https://araffin.github.io/slides/rlvs-tips-tricks/images/car/race_auto_encoder.png)
+
 
 1. Train the autoencoder (with data-augmentation)
 ```
