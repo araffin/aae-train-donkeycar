@@ -146,6 +146,18 @@ class RandomShadows(iaa.meta.Augmenter):
 
 
 class DataLoader(object):
+    """
+    A Custom dataloader to preprocessing images and feed them to the network.
+
+    :param minibatchlist: ([np.array]) list of observations indices (grouped per minibatch)
+    :param images_path: (np.array) Array of path to images
+    :param n_workers: (int) number of preprocessing worker (load and preprocess each image)
+    :param infinite_loop: (bool) whether to have an iterator that can be resetted, set to False, it
+    :param max_queue_len: (int) Max number of minibatches that can be preprocessed at the same time
+    :param is_training: (bool)
+    :param augment: (bool) Whether to use image augmentation or not
+    """
+
     def __init__(
         self,
         minibatchlist,
@@ -156,17 +168,6 @@ class DataLoader(object):
         is_training=False,
         augment=True,
     ):
-        """
-        A Custom dataloader to preprocessing images and feed them to the network.
-
-        :param minibatchlist: ([np.array]) list of observations indices (grouped per minibatch)
-        :param images_path: (np.array) Array of path to images
-        :param n_workers: (int) number of preprocessing worker (load and preprocess each image)
-        :param infinite_loop: (bool) whether to have an iterator that can be resetted, set to False, it
-        :param max_queue_len: (int) Max number of minibatches that can be preprocessed at the same time
-        :param is_training: (bool)
-        :param augment: (bool) Whether to use image augmentation or not
-        """
         super(DataLoader, self).__init__()
         self.n_workers = n_workers
         self.infinite_loop = infinite_loop

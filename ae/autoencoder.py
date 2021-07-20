@@ -256,33 +256,4 @@ def load_ae(path=None, z_size=None, quantize=False):
         autoencoder = Autoencoder.load(path)
     print("Dim AE = {}".format(autoencoder.z_size))
     print("PyTorch", th.__version__)
-    # TODO: check that pytorch >= 1.5.0
-    # autoencoder = th.jit.script(autoencoder)
-
-    # Does not work for Conv2d yet
-    # see https://discuss.pytorch.org/t/cannot-quantize-nn-conv2d-with-dynamic-quantization/66722
-    # More manually tweaking required
-    # if quantize:
-    #     # TODO: detect the backend?
-    #     qengine = 'fbgemm'  # qnnpack for arm
-    #     print("Quantization using {}".format(qengine))
-    #     qconfig = th.quantization.get_default_qconfig(qengine)
-    #     th.backends.quantized.engine = qengine
-    #
-    #     autoencoder = th.quantization.quantize_dynamic(
-    #         autoencoder, {nn.Conv2d, nn.ConvTranspose2d, nn.Linear}, dtype=th.qint8,
-    #     )
-    # print(autoencoder)
-
-    # Prune, slower...
-    # import torch.nn.utils.prune as prune
-    #
-    # for name, module in autoencoder.named_modules():
-    #     # prune 20% of connections in all 2D-conv layers
-    #     if isinstance(module, (th.nn.Conv2d, th.nn.ConvTranspose2d)):
-    #         prune.l1_unstructured(module, name='weight', amount=0.2)
-    #     # prune 10% of connections in all linear layers
-    #     elif isinstance(module, th.nn.Linear):
-    #         prune.l1_unstructured(module, name='weight', amount=0.1)
-
     return autoencoder
