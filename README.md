@@ -6,6 +6,10 @@ Presentation: [Learning To Race in Hours](https://araffin.github.io/talk/learnin
 
 ![Augmented Auto-Encoder](https://araffin.github.io/slides/rlvs-tips-tricks/images/car/race_auto_encoder.png)
 
+0. [Optional, only a folder with images is required] Split video into a sequence of images
+```
+python -m ae.split_video -i logs/videos/video.mp4 -o logs/dataset/
+```
 
 1. Train the autoencoder (with data-augmentation)
 ```
