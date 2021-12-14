@@ -9,10 +9,11 @@ ROBOT = "donkey"
 # ============ DonkeyCar Config ================== #
 # Raw camera input
 
-CAMERA_HEIGHT = 120
-CAMERA_WIDTH = 160
+CAMERA_HEIGHT = 96
+CAMERA_WIDTH = 96
 
-MARGIN_TOP = CAMERA_HEIGHT // 3
+# MARGIN_TOP = CAMERA_HEIGHT // 3
+MARGIN_TOP = 0
 
 # ============ End of DonkeyCar Config ============ #
 
@@ -27,8 +28,8 @@ FPS = 40
 ROI = [0, MARGIN_TOP, CAMERA_WIDTH, CAMERA_HEIGHT - MARGIN_TOP]
 
 # Fixed input dimension for the autoencoder
-IMAGE_WIDTH = 160
-IMAGE_HEIGHT = 80
+IMAGE_WIDTH = 96
+IMAGE_HEIGHT = 96
 N_CHANNELS = 3
 RAW_IMAGE_SHAPE = (CAMERA_HEIGHT, CAMERA_WIDTH, N_CHANNELS)
 INPUT_DIM = (IMAGE_HEIGHT, IMAGE_WIDTH, N_CHANNELS)
