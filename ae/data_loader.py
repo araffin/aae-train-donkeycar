@@ -39,7 +39,7 @@ def get_image_augmenter():
             Sometimes(0.5, iaa.Fliplr(1)),
             # TODO: add shadows, see: https://markku.ai/post/data-augmentation/
             # Add shadows (from https://github.com/OsamaMazhar/Random-Shadows-Highlights)
-            Sometimes(0.3, RandomShadows(1.0)),
+            # Sometimes(0.3, RandomShadows(1.0)),
             # Sometimes(0.3, iaa.MultiplyBrightness((0.8, 1.2))),
             Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 2.0))),
             Sometimes(0.5, iaa.MotionBlur(k=(3, 11), angle=(0, 360))),
