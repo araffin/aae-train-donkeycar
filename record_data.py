@@ -115,6 +115,7 @@ for frame_num in range(total_frames):
     if render:
         env.render()
     path = os.path.join(output_folder, f"{frame_num}.jpg")
+    # TODO: convert to BGR as opencv expect BGR
     cv2.imwrite(path, obs)
     if done:
         obs = env.reset()

@@ -15,8 +15,10 @@ class AutoencoderWrapper(gym.Wrapper):
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.ae.z_size,), dtype=np.float32)
 
     def reset(self):
+        # TODO: convert to BGR as opencv expect BGR
         return self.ae.encode_from_raw_image(self.env.reset()).flatten()
 
     def step(self, action):
+        # TODO: convert to BGR as opencv expect BGR
         obs, reward, done, infos = self.env.step(action)
         return self.ae.encode_from_raw_image(obs).flatten(), reward, done, infos
