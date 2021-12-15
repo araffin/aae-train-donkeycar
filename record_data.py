@@ -47,13 +47,13 @@ def control(x, theta, control_throttle, control_steering):
 
 # pytype: disable=name-error
 moveBindingsGame = {K_UP: UP, K_LEFT: LEFT, K_RIGHT: RIGHT, K_DOWN: DOWN}  # noqa: F405
-# pytype: enable=name-error
 WHITE = (230, 230, 230)
 pygame.font.init()
 FONT = pygame.font.SysFont("Open Sans", 25)
 
 pygame.init()
 window = pygame.display.set_mode((400, 400), RESIZABLE)
+# pytype: enable=name-error
 
 frame_skip = 2
 total_frames = 5000
@@ -81,7 +81,7 @@ for frame_num in range(total_frames):
             x_tmp, th_tmp = moveBindingsGame[keycode]
             x += x_tmp
             theta += th_tmp
-    if keys[K_b]:
+    if keys[K_b]:  # pytype: disable=name-error
         control_break = 0.1
 
     # Smooth control for teleoperation
@@ -115,8 +115,8 @@ for frame_num in range(total_frames):
     if render:
         env.render()
     path = os.path.join(output_folder, f"{frame_num}.jpg")
-    # TODO: convert to BGR as opencv expect BGR
-    cv2.imwrite(path, obs)
+    # Convert to BGR
+    cv2.imwrite(path, obs[:, :, ::-1])
     if done:
         obs = env.reset()
         control_throttle, control_steering = 0, 0
