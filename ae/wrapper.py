@@ -15,8 +15,8 @@ class AutoencoderWrapper(gym.Wrapper):
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.ae.z_size,), dtype=np.float32)
 
     def reset(self):
-        return self.ae.encode_from_raw_image(self.env.reset())
+        return self.ae.encode_from_raw_image(self.env.reset()).flatten()
 
     def step(self, action):
         obs, reward, done, infos = self.env.step(action)
-        return self.ae.encode_from_raw_image(obs), reward, done, infos
+        return self.ae.encode_from_raw_image(obs).flatten(), reward, done, infos
