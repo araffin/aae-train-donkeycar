@@ -17,6 +17,14 @@ MAX_THROTTLE = 0.5
 STEP_THROTTLE = 0.8
 STEP_TURN = 0.8
 
+frame_skip = 2
+total_frames = 10000
+render = True
+output_folder = "logs/carracing_2"
+
+# Create folder if needed
+os.makedirs(output_folder, exist_ok=True)
+
 
 def control(x, theta, control_throttle, control_steering):
     """
@@ -54,14 +62,6 @@ FONT = pygame.font.SysFont("Open Sans", 25)
 pygame.init()
 window = pygame.display.set_mode((400, 400), RESIZABLE)
 # pytype: enable=name-error
-
-frame_skip = 2
-total_frames = 5000
-render = True
-output_folder = "logs/carracing-v0"
-
-# Create folder if needed
-os.makedirs(output_folder, exist_ok=True)
 
 control_throttle, control_steering = 0, 0
 
