@@ -1,11 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
-import os
-
-import numpy as np
-
-ROBOT = "donkey"
-
 # ============ DonkeyCar Config ================== #
 # Raw camera input
 
@@ -20,8 +12,6 @@ MARGIN_TOP = CAMERA_HEIGHT // 3
 # Camera max FPS
 FPS = 40
 
-# Uncomment to use with the webcam:
-# PICAMERA_RESOLUTION = (CAMERA_HEIGHT, CAMERA_WIDTH)
 
 # Region Of Interest
 # r = [margin_left, margin_top, width, height]

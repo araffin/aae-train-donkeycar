@@ -1,3 +1,5 @@
+from typing import Optional, Tuple
+
 import cv2  # pytype: disable=import-error
 import numpy as np
 import torch as th
@@ -10,13 +12,20 @@ class Autoencoder(nn.Module):
     """
     Wrapper to manipulate an autoencoder.
 
-    :param z_size: (int) latent space dimension
-    :param input_dimension: ((int, int, int)) input dimension
-    :param learning_rate: (float)
-    :param normalization_mode: (str)
+    :param z_size: latent space dimension
+    :param input_dimension: input dimension
+    :param learning_rate:
+    :param normalization_mode: Type of normalization to use, one of "rl" or "tf"
+        By default, divides by 255.0 to scale to [0, 1]
     """
 
-    def __init__(self, z_size, input_dimension=INPUT_DIM, learning_rate=0.0001, normalization_mode="rl"):
+    def __init__(
+        self,
+        z_size: int,
+        input_dimension: Tuple[int, int, int] = INPUT_DIM,
+        learning_rate: float = 0.0001,
+        normalization_mode: str = "rl",
+    ):
         super().__init__()
         # AE input and output shapes
         self.z_size = z_size
@@ -36,21 +45,22 @@ class Autoencoder(nn.Module):
         self._build((c, h, w))
         self.optimizer = th.optim.Adam(self.parameters(), lr=self.learning_rate)
 
-    def encode_from_raw_image(self, raw_image):
+    def encode_from_raw_image(self, raw_image: np.ndarray) -> np.ndarray:
         """
         Crop and encode a BGR image.
         It returns the corresponding latent vector.
 
-        :param raw_image: (np.ndarray) BGR image
-        :return: (np.ndarray)
+        :param raw_image: BGR image
+        :return:
         """
         return self.encode(preprocess_image(raw_image, convert_to_rgb=False, normalize=False))
 
-    def encode(self, observation):
+    def encode(self, observation: np.ndarray) -> np.ndarray:
         """
         Normalize and encode a cropped image.
-        :param observation: (np.ndarray) Cropped image
-        :return: (np.ndarray) corresponding latent vector
+
+        :param observation: Cropped image
+        :return: corresponding latent vector
         """
         assert observation.shape == self.input_dimension, f"{observation.shape} != {self.input_dimension}"
         # Normalize
@@ -59,10 +69,10 @@ class Autoencoder(nn.Module):
             observation = th.as_tensor(observation).to(self.device)
             return self.encode_forward(observation).cpu().numpy()
 
-    def decode(self, arr):
+    def decode(self, arr: np.ndarray) -> np.ndarray:
         """
-        :param arr: (np.ndarray) latent vector
-        :return: (np.ndarray) BGR image
+        :param arr: latent vector
+        :return: BGR image
         """
         assert arr.shape == (1, self.z_size), f"{arr.shape} != {(1, self.z_size)}"
         # Decode
@@ -73,7 +83,12 @@ class Autoencoder(nn.Module):
         arr = denormalize(arr, mode=self.normalization_mode)
         return arr
 
-    def _build(self, input_shape):
+    def _build(self, input_shape: Tuple[int, int, int]) -> None:
+        """
+        Build encoder/decoder networks.
+
+        :param input_shape:
+        """
         # n_channels, kernel_size, strides, activation, padding=0
         self.encoder = nn.Sequential(
             nn.Conv2d(input_shape[0], 16, kernel_size=4, stride=2),
@@ -104,30 +119,30 @@ class Autoencoder(nn.Module):
             nn.Sigmoid(),
         )
 
-    def encode_forward(self, input_tensor):
+    def encode_forward(self, input_tensor: th.Tensor) -> th.Tensor:
         """
-        :param input_tensor: (th.Tensor)
-        :return: (th.Tensor)
+        :param input_tensor: Input image (as pytorch Tensor)
+        :return: Latent vector
         """
         h = self.encoder(input_tensor).reshape(input_tensor.size(0), -1)
         return self.encode_linear(h)
 
-    def decode_forward(self, z):
+    def decode_forward(self, z: th.Tensor) -> th.Tensor:
         """
-        :param z: (th.Tensor)
-        :return: (th.Tensor)
+        :param z: Latent vector
+        :return: Reconstructed image
         """
         h = self.decode_linear(z).reshape((z.size(0),) + self.shape_before_flatten)
         return self.decoder(h)
 
-    def forward(self, input_image):
+    def forward(self, input_image: th.Tensor) -> th.Tensor:
         return self.decode_forward(self.encode_forward(input_image))
 
-    def save(self, save_path):
+    def save(self, save_path: str) -> None:
         """
         Save to a pickle file.
 
-        :param save_path: (str)
+        :param save_path:
         """
         data = {
             "z_size": self.z_size,
@@ -139,7 +154,7 @@ class Autoencoder(nn.Module):
         th.save({"state_dict": self.state_dict(), "data": data}, save_path)
 
     @classmethod
-    def load(cls, load_path):
+    def load(cls, load_path: str) -> "Autoencoder":
         device = th.device("cuda") if th.cuda.is_available() else th.device("cpu")
         saved_variables = th.load(load_path, map_location=device)
         model = cls(**saved_variables["data"])
@@ -148,16 +163,16 @@ class Autoencoder(nn.Module):
         return model
 
 
-def preprocess_input(x, mode="rl"):
+def preprocess_input(x: np.ndarray, mode: str = "rl") -> np.ndarray:
     """
     Normalize input.
 
-    :param x: (np.ndarray) (RGB image with values between [0, 255])
-    :param mode: (str) One of "image_net", "tf" or "rl".
+    :param x: (RGB image with values between [0, 255])
+    :param mode: One of "tf" or "rl".
         - rl: divide by 255 only (rescale to [0, 1])
         - tf: will scale pixels between -1 and 1,
             sample-wise.
-    :return: (np.ndarray)
+    :return: Scaled input
     """
     assert x.shape[-1] == 3, f"Color channel must be at the end of the tensor {x.shape}"
     # RL mode: divide only by 255
@@ -179,13 +194,13 @@ def preprocess_input(x, mode="rl"):
     return x
 
 
-def denormalize(x, mode="rl"):
+def denormalize(x: np.ndarray, mode: str = "rl") -> np.ndarray:
     """
     De normalize data (transform input to [0, 1])
 
-    :param x: (np.ndarray)
-    :param mode: (str) One of "tf" or "rl".
-    :return: (np.ndarray)
+    :param x:
+    :param mode: One of "tf" or "rl".
+    :return:
     """
 
     if mode == "tf":
@@ -207,15 +222,15 @@ def denormalize(x, mode="rl"):
     return (255 * np.clip(x, 0, 1)).astype(np.uint8)
 
 
-def preprocess_image(image, convert_to_rgb=False, normalize=True):
+def preprocess_image(image: np.ndarray, convert_to_rgb: bool = False, normalize: bool = True) -> np.ndarray:
     """
     Crop, resize and normalize image.
     Optionnally it also converts the image from BGR to RGB.
 
-    :param image: (np.ndarray) image (BGR or RGB)
-    :param convert_to_rgb: (bool) whether the conversion to rgb is needed or not
-    :param normalize: (bool) Whether to normalize or not
-    :return: (np.ndarray)
+    :param image: image (BGR or RGB)
+    :param convert_to_rgb: whether the conversion to rgb is needed or not
+    :param normalize: Whether to normalize or not
+    :return:
     """
     assert image.shape == RAW_IMAGE_SHAPE, f"{image.shape} != {RAW_IMAGE_SHAPE}"
     # Crop
@@ -236,12 +251,16 @@ def preprocess_image(image, convert_to_rgb=False, normalize=True):
     return im
 
 
-def load_ae(path=None, z_size=None, quantize=False):
+def load_ae(
+    path: Optional[str] = None,
+    z_size: Optional[int] = None,
+    quantize: bool = False,
+) -> Autoencoder:
     """
-    :param path: (str)
-    :param z_size: (int)
-    :param quantize: (bool) Whether to quantize the model or not
-    :return: (Autoencoder)
+    :param path:
+    :param z_size:
+    :param quantize: Whether to quantize the model or not
+    :return:
     """
     # z_size will be recovered from saved model
     if z_size is None:

@@ -100,7 +100,7 @@ for frame_num in range(total_frames):
             exit()
 
     window.fill((0, 0, 0))
-    text = str("Control ready")
+    text = "Control ready"
     text = FONT.render(text, True, WHITE)
     window.blit(text, (100, 100))
     pygame.display.flip()
