@@ -1,6 +1,6 @@
 from typing import Optional, Tuple
 
-import cv2  # pytype: disable=import-error
+import cv2
 import numpy as np
 import torch as th
 from torch import nn

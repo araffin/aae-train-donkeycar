@@ -1,9 +1,14 @@
+import os
+
 from setuptools import find_packages, setup
+
+with open("requirements.txt", "r") as file_handler:
+    requirements = file_handler.read().strip().split(os.linesep)
 
 setup(
     name="ae",
     packages=[package for package in find_packages() if package.startswith("ae")],
-    install_requires=[],
+    install_requires=requirements,
     extras_require={},
     description="Augmented Autoencoder",
     author="Antonin Raffin",

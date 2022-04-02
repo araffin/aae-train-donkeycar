@@ -5,7 +5,7 @@ import random
 import time
 from multiprocessing import Process, Queue
 
-import cv2  # pytype: disable=import-error
+import cv2
 import imgaug
 import numpy as np
 import torchvision.transforms.functional as vision_fn

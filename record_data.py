@@ -1,7 +1,13 @@
+"""
+Simple script to manually record data
+by driving around.
+"""
 import os
+from typing import Tuple
 
 import cv2
 import gym
+import gym_donkeycar  # noqa: F401
 import numpy as np
 import pygame
 from pygame.locals import *  # noqa: F403
@@ -20,20 +26,25 @@ STEP_TURN = 0.8
 frame_skip = 2
 total_frames = 10000
 render = True
-output_folder = "logs/carracing_2"
+output_folder = "logs/dataset-mountain"
 
 # Create folder if needed
 os.makedirs(output_folder, exist_ok=True)
 
 
-def control(x, theta, control_throttle, control_steering):
+def control(
+    x,
+    theta: float,
+    control_throttle: float,
+    control_steering: float,
+) -> Tuple[float, float]:
     """
     Smooth control.
-    :param x: (float)
-    :param theta: (float)
-    :param control_throttle: (float)
-    :param control_steering: (float)
-    :return: (float, float)
+    :param x:
+    :param theta:
+    :param control_throttle:
+    :param control_steering:
+    :return:
     """
     target_throttle = x * MAX_THROTTLE
     target_steering = MAX_TURN * theta
@@ -65,7 +76,7 @@ window = pygame.display.set_mode((400, 400), RESIZABLE)
 
 control_throttle, control_steering = 0, 0
 
-env = gym.make("CarRacing-v0")
+env = gym.make("donkey-mountain-track-v0")
 obs = env.reset()
 for frame_num in range(total_frames):
     # action = env.action_space.sample()
@@ -105,8 +116,8 @@ for frame_num in range(total_frames):
     window.blit(text, (100, 100))
     pygame.display.flip()
 
-    # steer, gas, brake
-    action = np.array([-control_steering, control_throttle, 0.0])
+    # steer, throttle
+    action = np.array([-control_steering, control_throttle])
 
     for _ in range(frame_skip):
         obs, _, done, _ = env.step(action)
