@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import cv2  # pytype: disable=import-error
 import numpy as np
 import torch as th
@@ -19,7 +17,7 @@ class Autoencoder(nn.Module):
     """
 
     def __init__(self, z_size, input_dimension=INPUT_DIM, learning_rate=0.0001, normalization_mode="rl"):
-        super(Autoencoder, self).__init__()
+        super().__init__()
         # AE input and output shapes
         self.z_size = z_size
         self.input_dimension = input_dimension
@@ -54,7 +52,7 @@ class Autoencoder(nn.Module):
         :param observation: (np.ndarray) Cropped image
         :return: (np.ndarray) corresponding latent vector
         """
-        assert observation.shape == self.input_dimension, "{} != {}".format(observation.shape, self.input_dimension)
+        assert observation.shape == self.input_dimension, f"{observation.shape} != {self.input_dimension}"
         # Normalize
         observation = preprocess_input(observation.astype(np.float32), mode=self.normalization_mode)[None]
         with th.no_grad():
@@ -66,7 +64,7 @@ class Autoencoder(nn.Module):
         :param arr: (np.ndarray) latent vector
         :return: (np.ndarray) BGR image
         """
-        assert arr.shape == (1, self.z_size), "{} != {}".format(arr.shape, (1, self.z_size))
+        assert arr.shape == (1, self.z_size), f"{arr.shape} != {(1, self.z_size)}"
         # Decode
         with th.no_grad():
             arr = th.as_tensor(arr).float().to(self.device)
@@ -161,7 +159,7 @@ def preprocess_input(x, mode="rl"):
             sample-wise.
     :return: (np.ndarray)
     """
-    assert x.shape[-1] == 3, "Color channel must be at the end of the tensor {}".format(x.shape)
+    assert x.shape[-1] == 3, f"Color channel must be at the end of the tensor {x.shape}"
     # RL mode: divide only by 255
     x /= 255.0
 
@@ -219,7 +217,7 @@ def preprocess_image(image, convert_to_rgb=False, normalize=True):
     :param normalize: (bool) Whether to normalize or not
     :return: (np.ndarray)
     """
-    assert image.shape == RAW_IMAGE_SHAPE, "{} != {}".format(image.shape, RAW_IMAGE_SHAPE)
+    assert image.shape == RAW_IMAGE_SHAPE, f"{image.shape} != {RAW_IMAGE_SHAPE}"
     # Crop
     # Region of interest
     r = ROI
@@ -254,6 +252,6 @@ def load_ae(path=None, z_size=None, quantize=False):
         autoencoder = Autoencoder(z_size=1)
     else:
         autoencoder = Autoencoder.load(path)
-    print("Dim AE = {}".format(autoencoder.z_size))
+    print(f"Dim AE = {autoencoder.z_size}")
     print("PyTorch", th.__version__)
     return autoencoder
