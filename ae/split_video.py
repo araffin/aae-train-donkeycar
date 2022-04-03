@@ -3,7 +3,6 @@ Convert a video to a sequence of images
 Taken from https://github.com/sergionr2/RacingRobot
 Author: Antonin RAFFIN
 """
-from __future__ import division, print_function
 
 import argparse
 import glob
@@ -30,7 +29,7 @@ os.makedirs(output_folder, exist_ok=True)
 # Check for exisiting images
 current_log_idx = len(glob.glob(os.path.join(output_folder, "*.jpg")))
 if current_log_idx:
-    print("Found {} images in the output folder".format(current_log_idx))
+    print(f"Found {current_log_idx} images in the output folder")
 
 # OpenCV >= 3
 # 0-based index of the frame to be decoded/captured next.
@@ -43,7 +42,7 @@ cap = cv2.VideoCapture(video_file)
 
 current_idx = cap.get(image_zero_index)
 n_frames = int(cap.get(frame_count))
-print("{} frames".format(n_frames))
+print(f"{n_frames} frames")
 
 # Progress Bar
 pbar = tqdm(total=n_frames)
@@ -76,7 +75,7 @@ while True:
         current_idx += 1 if key in [RIGHT_KEY, ENTER_KEY] else -1
         current_idx = np.clip(current_idx, 0, n_frames - 1)
         # Save image
-        path = os.path.join(output_folder, "{}.jpg".format(int(current_log_idx + current_idx)))
+        path = os.path.join(output_folder, f"{int(current_log_idx + current_idx)}.jpg")
         cv2.imwrite(path, original_img)
     pbar.update(1)
 

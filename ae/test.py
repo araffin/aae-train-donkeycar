@@ -57,8 +57,8 @@ for _ in range(args.n_samples):
     reconstructed_image = autoencoder.decode(encoded)[0]
 
 time_per_image = (time.time() - start_time) / args.n_samples
-print("{:.4f}s".format(time_per_image))
-print("{:.4f}Hz".format(1 / time_per_image))
+print(f"{time_per_image:.4f}s")
+print(f"{1 / time_per_image:.4f}Hz")
 
 errors = []
 
@@ -102,7 +102,7 @@ for _ in range(args.n_samples):
     if k == 27:
         break
 
-print("Min error: {:.2f}".format(np.min(errors)))
-print("Max error: {:.2f}".format(np.max(errors)))
-print("Mean error: {:.2f} +/- {:.2f}".format(np.mean(errors), np.std(errors)))
-print("Median error: {:.2f}".format(np.median(errors)))
+print(f"Min error: {np.min(errors):.2f}")
+print(f"Max error: {np.max(errors):.2f}")
+print(f"Mean error: {np.mean(errors):.2f} +/- {np.std(errors):.2f}")
+print(f"Median error: {np.median(errors):.2f}")

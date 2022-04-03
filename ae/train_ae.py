@@ -49,7 +49,7 @@ for folder in args.folders:
         folder += "/"
     folders.append(folder)
     images_ = [folder + im for im in os.listdir(folder) if im.endswith(".jpg")]
-    print("{}: {} images".format(folder, len(images_)))
+    print(f"{folder}: {len(images_)} images")
     images.append(images_)
 
 
@@ -59,7 +59,7 @@ n_samples = len(images)
 if args.n_samples > 0:
     n_samples = min(n_samples, args.n_samples)
 
-print("{} images".format(n_samples))
+print(f"{n_samples} images")
 
 # indices for all time steps where the episode continues
 indices = np.arange(n_samples, dtype="int64")
@@ -85,8 +85,8 @@ autoencoder.to(autoencoder.device)
 
 best_loss = np.inf
 ae_id = int(time.time())
-save_path = "logs/ae-{}_{}.pkl".format(args.z_size, ae_id)
-best_model_path = "logs/ae-{}_{}_best.pkl".format(args.z_size, ae_id)
+save_path = f"logs/ae-{args.z_size}_{ae_id}.pkl"
+best_model_path = f"logs/ae-{args.z_size}_{ae_id}_best.pkl"
 os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
 try:
@@ -108,13 +108,13 @@ try:
 
             pbar.update(1)
         pbar.close()
-        print("Epoch {:3}/{}".format(epoch + 1, args.n_epochs))
+        print(f"Epoch {epoch + 1:3}/{args.n_epochs}")
         print("Loss:", train_loss)
 
         # TODO: use validation set
         if train_loss < best_loss:
             best_loss = train_loss
-            print("Saving best model to {}".format(best_model_path))
+            print(f"Saving best model to {best_model_path}")
             autoencoder.save(best_model_path)
 
         # Load test image
@@ -136,5 +136,5 @@ try:
 except KeyboardInterrupt:
     pass
 
-print("Saving to {}".format(save_path))
+print(f"Saving to {save_path}")
 autoencoder.save(save_path)

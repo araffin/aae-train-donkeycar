@@ -1,12 +1,11 @@
 # Original code from https://github.com/araffin/robotics-rl-srl
 # Authors: Antonin Raffin, René Traoré, Ashley Hill
-from __future__ import absolute_import, division, print_function
 
 import random
 import time
 from multiprocessing import Process, Queue
 
-import cv2  # pytype: disable=import-error
+import cv2
 import imgaug
 import numpy as np
 import torchvision.transforms.functional as vision_fn
@@ -19,9 +18,9 @@ from six.moves import queue
 from ae.autoencoder import preprocess_image, preprocess_input
 
 
-class CheckFliplrPostProcessor(object):
+class CheckFliplrPostProcessor:
     def __init__(self):
-        super(CheckFliplrPostProcessor, self).__init__()
+        super().__init__()
         self.flipped = False
 
     def __call__(self, images, augmenter, parents):
@@ -30,14 +29,13 @@ class CheckFliplrPostProcessor(object):
         return images
 
 
-def get_image_augmenter():
+def get_image_augmenter() -> iaa.Sequential:
     """
-    :return: (iaa.Sequential) Image Augmenter
+    :return: Image Augmenter
     """
     return iaa.Sequential(
         [
             Sometimes(0.5, iaa.Fliplr(1)),
-            # TODO: add shadows, see: https://markku.ai/post/data-augmentation/
             # Add shadows (from https://github.com/OsamaMazhar/Random-Shadows-Highlights)
             Sometimes(0.3, RandomShadows(1.0)),
             # Sometimes(0.3, iaa.MultiplyBrightness((0.8, 1.2))),
@@ -70,7 +68,7 @@ class RandomShadows(iaa.meta.Augmenter):
         seed=None,
         name=None,
     ):
-        super(RandomShadows, self).__init__(seed=seed, name=name)
+        super().__init__(seed=seed, name=name)
 
         self.p = p
         self.high_ratio = high_ratio
@@ -145,7 +143,7 @@ class RandomShadows(iaa.meta.Augmenter):
         return []
 
 
-class DataLoader(object):
+class DataLoader:
     """
     A Custom dataloader to preprocessing images and feed them to the network.
 
@@ -168,7 +166,7 @@ class DataLoader(object):
         is_training=False,
         augment=True,
     ):
-        super(DataLoader, self).__init__()
+        super().__init__()
         self.n_workers = n_workers
         self.infinite_loop = infinite_loop
         self.n_minibatches = len(minibatchlist)
@@ -253,7 +251,7 @@ class DataLoader(object):
         # cf https://stackoverflow.com/questions/33650974/opencv-python-read-specific-frame-using-videocapture
         im = cv2.imread(image_path)
         if im is None:
-            raise ValueError("tried to load {}.jpg, but it was not found".format(image_path))
+            raise ValueError(f"tried to load {image_path}.jpg, but it was not found")
 
         postprocessor = CheckFliplrPostProcessor()
 
