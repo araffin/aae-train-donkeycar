@@ -8,3 +8,4 @@ torch
 torchvision
 tqdm
 imgaug>=0.4.0
+lightly

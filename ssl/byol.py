@@ -1,0 +1,226 @@
+import argparse
+import copy
+
+# import time TODO: unique name for checkpoint
+from typing import Tuple, Union
+
+import cv2
+import numpy as np
+import pytorch_lightning as pl
+import torch as th
+import torchvision
+import torchvision.transforms as T
+from lightly.data import BaseCollateFunction, LightlyDataset
+from lightly.loss import NegativeCosineSimilarity
+from lightly.models.modules import BYOLProjectionHead
+from lightly.models.utils import deactivate_requires_grad, update_momentum
+from lightly.transforms import GaussianBlur, RandomRotate
+from torch import nn
+
+from config import INPUT_DIM, ROI
+
+imagenet_normalize = {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
+
+
+class CropAndResize:
+    def __init__(self):
+        pass
+
+    def __call__(self, image: np.ndarray) -> np.ndarray:
+        # Crop
+        # Region of interest
+        r = ROI
+        image = image[int(r[1]) : int(r[1] + r[3]), int(r[0]) : int(r[0] + r[2])]
+        im = image
+        # Hack: resize if needed, better to change conv2d  kernel size / padding
+        if ROI[2] != INPUT_DIM[1] or ROI[3] != INPUT_DIM[0]:
+            im = cv2.resize(im, (INPUT_DIM[1], INPUT_DIM[0]), interpolation=cv2.INTER_AREA)
+        return im
+
+
+class CustomImageCollateFunction(BaseCollateFunction):
+    """Implementation of a collate function for images.
+    This is an implementation of the BaseCollateFunction with a concrete
+    set of transforms.
+    The set of transforms is inspired by the SimCLR paper as it has shown
+    to produce powerful embeddings.
+    Attributes:
+        input_size:
+            Size of the input image in pixels.
+        cj_prob:
+            Probability that color jitter is applied.
+        cj_bright:
+            How much to jitter brightness.
+        cj_contrast:
+            How much to jitter constrast.
+        cj_sat:
+            How much to jitter saturation.
+        cj_hue:
+            How much to jitter hue.
+        min_scale:
+            Minimum size of the randomized crop relative to the input_size.
+        random_gray_scale:
+            Probability of conversion to grayscale.
+        gaussian_blur:
+            Probability of Gaussian blur.
+        kernel_size:
+            Sigma of gaussian blur is kernel_size * input_size.
+        vf_prob:
+            Probability that vertical flip is applied.
+        hf_prob:
+            Probability that horizontal flip is applied.
+        rr_prob:
+            Probability that random (+90 degree) rotation is applied.
+        normalize:
+            Dictionary with 'mean' and 'std' for torchvision.transforms.Normalize.
+    """
+
+    def __init__(
+        self,
+        input_size: Union[int, Tuple[int]] = 64,
+        cj_prob: float = 0.8,
+        cj_strength: float = 0.5,
+        # min_scale: float = 1.0,
+        random_gray_scale: float = 0.2,
+        gaussian_blur: float = 0.5,
+        kernel_size: float = 0.1,
+        # vf_prob: float = 0.0,
+        hf_prob: float = 0.5,
+        rr_prob: float = 0.0,
+        normalize: dict = imagenet_normalize,
+    ):
+
+        if isinstance(input_size, tuple):
+            input_size_ = max(input_size)
+        else:
+            input_size_ = input_size
+
+            cj_bright = (cj_strength * 0.8,)
+            cj_contrast = (cj_strength * 0.8,)
+            cj_sat = (cj_strength * 0.8,)
+            cj_hue = (cj_strength * 0.2,)
+
+        color_jitter = T.ColorJitter(cj_bright, cj_contrast, cj_sat, cj_hue)
+
+        transform = [
+            CropAndResize(),
+            RandomRotate(prob=rr_prob),
+            T.RandomHorizontalFlip(p=hf_prob),
+            # T.RandomVerticalFlip(p=vf_prob),
+            T.RandomApply([color_jitter], p=cj_prob),
+            T.RandomGrayscale(p=random_gray_scale),
+            GaussianBlur(kernel_size=kernel_size * input_size_, prob=gaussian_blur),
+            T.ToTensor(),
+        ]
+
+        if normalize:
+            transform += [T.Normalize(mean=normalize["mean"], std=normalize["std"])]
+
+        transform = T.Compose(transform)
+
+        super().__init__(transform)
+
+
+class SmallEncoder(nn.Module):
+    def __init__(self, input_shape: Tuple[int, int, int] = INPUT_DIM):
+        super().__init__()
+        # n_channels, kernel_size, strides, activation, padding=0
+        self.encoder = nn.Sequential(
+            nn.Conv2d(input_shape[0], 16, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(16, 32, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2),
+            nn.ReLU(),
+        )
+
+        # Compute the shape doing a forward pass
+        self.shape_before_flatten = self.encoder(th.ones((1,) + input_shape)).shape[1:]
+        flatten_size = int(np.prod(self.shape_before_flatten))
+        self.encode_linear = nn.Linear(flatten_size, self.z_size)
+
+    def forward(self, input_tensor: th.Tensor) -> th.Tensor:
+        """
+        :param input_tensor: Input image (as pytorch Tensor)
+        :return:
+        """
+        h = self.encoder(input_tensor).reshape(input_tensor.size(0), -1)
+        return self.encode_linear(h)
+
+
+class BYOL(pl.LightningModule):
+    def __init__(self):
+        super().__init__()
+        resnet = torchvision.models.resnet18()
+        self.backbone = nn.Sequential(*list(resnet.children())[:-1])
+        self.projection_head = BYOLProjectionHead(512, 1024, 256)
+        self.prediction_head = BYOLProjectionHead(256, 1024, 256)
+
+        self.backbone_momentum = copy.deepcopy(self.backbone)
+        self.projection_head_momentum = copy.deepcopy(self.projection_head)
+
+        deactivate_requires_grad(self.backbone_momentum)
+        deactivate_requires_grad(self.projection_head_momentum)
+
+        self.criterion = NegativeCosineSimilarity()
+
+    def forward(self, x):
+        y = self.backbone(x).flatten(start_dim=1)
+        z = self.projection_head(y)
+        p = self.prediction_head(z)
+        return p
+
+    def forward_momentum(self, x):
+        y = self.backbone_momentum(x).flatten(start_dim=1)
+        z = self.projection_head_momentum(y)
+        z = z.detach()
+        return z
+
+    def training_step(self, batch, batch_idx):
+        update_momentum(self.backbone, self.backbone_momentum, m=0.99)
+        update_momentum(self.projection_head, self.projection_head_momentum, m=0.99)
+        (x0, x1), _, _ = batch
+        p0 = self.forward(x0)
+        z0 = self.forward_momentum(x0)
+        p1 = self.forward(x1)
+        z1 = self.forward_momentum(x1)
+        loss = 0.5 * (self.criterion(p0, z1) + self.criterion(p1, z0))
+        return loss
+
+    def configure_optimizers(self):
+        return th.optim.SGD(self.parameters(), lr=0.06)
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
+parser.add_argument("-n", "--max-epochs", help="Max number of epochs", type=int, default=10)
+parser.add_argument("-bs", "--batch-size", help="Minibatch size", type=int, default=256)
+args = parser.parse_args()
+
+model = BYOL()
+
+# Create a dataset from a folder containing images or videos:
+dataset = LightlyDataset(args.folder)
+
+# collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
+# create a collate function which performs the random augmentations
+# collate_fn = lightly.data.BaseCollateFunction(transform)
+collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
+
+
+dataloader = th.utils.data.DataLoader(
+    dataset,
+    batch_size=args.batch_size,
+    collate_fn=collate_fn,
+    shuffle=True,
+    drop_last=True,
+    num_workers=8,
+)
+
+gpus = 1 if th.cuda.is_available() else 0
+
+trainer = pl.Trainer(max_epochs=args.max_epochs, gpus=gpus)
+trainer.fit(model=model, train_dataloaders=dataloader)
+trainer.save_checkpoint("logs/byol.ckpt")
