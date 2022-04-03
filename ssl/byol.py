@@ -1,7 +1,5 @@
 import argparse
 import copy
-
-# import time TODO: unique name for checkpoint
 from typing import Tuple, Union
 
 import cv2
@@ -29,8 +27,10 @@ class CropAndResize:
     def __call__(self, image: np.ndarray) -> np.ndarray:
         # Crop
         # Region of interest
-        r = ROI
-        image = image[int(r[1]) : int(r[1] + r[3]), int(r[0]) : int(r[0] + r[2])]
+        # r = ROI
+        # image = image[int(r[1]) : int(r[1] + r[3]), int(r[0]) : int(r[0] + r[2])]
+        margin_left, margin_top, width, height = ROI
+        image = T.functional.crop(image, margin_top, margin_left, height, width)
         im = image
         # Hack: resize if needed, better to change conv2d  kernel size / padding
         if ROI[2] != INPUT_DIM[1] or ROI[3] != INPUT_DIM[0]:
@@ -95,10 +95,10 @@ class CustomImageCollateFunction(BaseCollateFunction):
         else:
             input_size_ = input_size
 
-            cj_bright = (cj_strength * 0.8,)
-            cj_contrast = (cj_strength * 0.8,)
-            cj_sat = (cj_strength * 0.8,)
-            cj_hue = (cj_strength * 0.2,)
+        cj_bright = cj_strength * 0.8
+        cj_contrast = cj_strength * 0.8
+        cj_sat = cj_strength * 0.8
+        cj_hue = cj_strength * 0.2
 
         color_jitter = T.ColorJitter(cj_bright, cj_contrast, cj_sat, cj_hue)
 
@@ -193,34 +193,38 @@ class BYOL(pl.LightningModule):
         return th.optim.SGD(self.parameters(), lr=0.06)
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
-parser.add_argument("-n", "--max-epochs", help="Max number of epochs", type=int, default=10)
-parser.add_argument("-bs", "--batch-size", help="Minibatch size", type=int, default=256)
-args = parser.parse_args()
+if __name__ == "__main__":
 
-model = BYOL()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
+    parser.add_argument("-n", "--max-epochs", help="Max number of epochs", type=int, default=10)
+    parser.add_argument("-bs", "--batch-size", help="Minibatch size", type=int, default=256)
+    args = parser.parse_args()
 
-# Create a dataset from a folder containing images or videos:
-dataset = LightlyDataset(args.folder)
+    model = BYOL()
 
-# collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
-# create a collate function which performs the random augmentations
-# collate_fn = lightly.data.BaseCollateFunction(transform)
-collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
+    # Create a dataset from a folder containing images or videos:
+    dataset = LightlyDataset(args.folder)
 
+    # collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
+    # create a collate function which performs the random augmentations
+    # collate_fn = lightly.data.BaseCollateFunction(transform)
+    collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
 
-dataloader = th.utils.data.DataLoader(
-    dataset,
-    batch_size=args.batch_size,
-    collate_fn=collate_fn,
-    shuffle=True,
-    drop_last=True,
-    num_workers=8,
-)
+    dataloader = th.utils.data.DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        collate_fn=collate_fn,
+        shuffle=True,
+        drop_last=True,
+        num_workers=8,
+    )
 
-gpus = 1 if th.cuda.is_available() else 0
+    gpus = 1 if th.cuda.is_available() else 0
 
-trainer = pl.Trainer(max_epochs=args.max_epochs, gpus=gpus)
-trainer.fit(model=model, train_dataloaders=dataloader)
-trainer.save_checkpoint("logs/byol.ckpt")
+    trainer = pl.Trainer(max_epochs=args.max_epochs, gpus=gpus, log_every_n_steps=10)
+    try:
+        trainer.fit(model=model, train_dataloaders=dataloader)
+    except KeyboardInterrupt:
+        pass
+    trainer.save_checkpoint("logs/byol.ckpt")
