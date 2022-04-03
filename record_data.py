@@ -2,6 +2,7 @@
 Simple script to manually record data
 by driving around.
 """
+import argparse
 import os
 from typing import Tuple
 
@@ -11,6 +12,11 @@ import gym_donkeycar  # noqa: F401
 import numpy as np
 import pygame
 from pygame.locals import *  # noqa: F403
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-f", "--folder", help="Path to folder where images will be saved", type=str, required=True)
+parser.add_argument("-n", "--max-steps", help="Max number of steps", type=int, default=10000)
+args = parser.parse_args()
 
 UP = (1, 0)
 LEFT = (0, 1)
@@ -24,9 +30,9 @@ STEP_THROTTLE = 0.8
 STEP_TURN = 0.8
 
 frame_skip = 2
-total_frames = 10000
+total_frames = args.max_steps
 render = True
-output_folder = "logs/dataset-mountain"
+output_folder = args.folder
 
 # Create folder if needed
 os.makedirs(output_folder, exist_ok=True)
@@ -40,6 +46,7 @@ def control(
 ) -> Tuple[float, float]:
     """
     Smooth control.
+
     :param x:
     :param theta:
     :param control_throttle:
@@ -79,11 +86,6 @@ control_throttle, control_steering = 0, 0
 env = gym.make("donkey-mountain-track-v0")
 obs = env.reset()
 for frame_num in range(total_frames):
-    # action = env.action_space.sample()
-    # # do not break too much
-    # # steer, gas, brake
-    # action[2] = max(action[2], 0.1)
-    control_break = 0
     x, theta = 0, 0
     # Record pressed keys
     keys = pygame.key.get_pressed()
@@ -92,8 +94,6 @@ for frame_num in range(total_frames):
             x_tmp, th_tmp = moveBindingsGame[keycode]
             x += x_tmp
             theta += th_tmp
-    if keys[K_b]:  # pytype: disable=name-error
-        control_break = 0.1
 
     # Smooth control for teleoperation
     control_throttle, control_steering = control(x, theta, control_throttle, control_steering)

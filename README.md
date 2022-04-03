@@ -10,13 +10,18 @@ Presentation: [Learning To Race in Hours](https://araffin.github.io/talk/learnin
 
 1. Download and launch the donkey car simulator
 
-2. Install dependencies (TODO: add donkey car gym dep)
+2. Install dependencies
+```
+# Install current package
+pip install -e .
+# If not using custom donkey car gym
+pip install git+https://github.com/araffin/gym-donkeycar-1@feat/live-twitch
+```
 
 3. Drive around randomly (make sure to check the script first)
-TODO: add command line arguments
 
 ```
-python record_data.py
+python record_data.py --max-steps 10000 -f logs/dataset-mountain
 ```
 
 ## Train the AutoEncoder
@@ -46,4 +51,10 @@ python -m ae.test -f logs/dataset-test/ -ae logs/ae-32_000000.pkl --n-samples 50
 
 ## Use the AutoEncoder with a Gym wrapper
 
-TODO
+The Gym wrapper is `ae.wrapper.AutoencoderWrapper`, you can add it to the [RL Zoo](https://github.com/DLR-RM/rl-baselines3-zoo) (branch "offline-rl").
+
+```
+# Export path to trained autoencoder
+export AAE_PATH=/absolute/path/to/autoencoder.pkl
+# Then you can call python train.py --algo ... --env ... with the RL Zoo
+```
