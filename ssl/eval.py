@@ -68,6 +68,7 @@ def plot_knn_examples(embeddings, filenames, folder, n_neighbors=3, num_examples
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
+parser.add_argument("-i", "--model", help="Path to saved model", type=str, required=True)
 # parser.add_argument("-n", "--n-samples", help="Number of samples", type=int, default=256)
 args = parser.parse_args()
 
@@ -95,7 +96,7 @@ dataloader_test = th.utils.data.DataLoader(
     num_workers=2,
 )
 
-model = BYOL.load_from_checkpoint("logs/byol.ckpt")
+model = BYOL.load_from_checkpoint(args.model)
 model.eval()
 embeddings, filenames = generate_embeddings(model, dataloader_test)
 

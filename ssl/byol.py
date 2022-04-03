@@ -122,8 +122,11 @@ class CustomImageCollateFunction(BaseCollateFunction):
 
 
 class SmallEncoder(nn.Module):
-    def __init__(self, input_shape: Tuple[int, int, int] = INPUT_DIM):
+    def __init__(self, input_dimension: Tuple[int, int, int] = INPUT_DIM, encoder_dim: int = 256):
         super().__init__()
+        # Re-order
+        h, w, c = input_dimension
+        input_shape = (c, h, w)
         # n_channels, kernel_size, strides, activation, padding=0
         self.encoder = nn.Sequential(
             nn.Conv2d(input_shape[0], 16, kernel_size=4, stride=2),
@@ -139,7 +142,7 @@ class SmallEncoder(nn.Module):
         # Compute the shape doing a forward pass
         self.shape_before_flatten = self.encoder(th.ones((1,) + input_shape)).shape[1:]
         flatten_size = int(np.prod(self.shape_before_flatten))
-        self.encode_linear = nn.Linear(flatten_size, self.z_size)
+        self.encode_linear = nn.Linear(flatten_size, encoder_dim)
 
     def forward(self, input_tensor: th.Tensor) -> th.Tensor:
         """
@@ -151,12 +154,17 @@ class SmallEncoder(nn.Module):
 
 
 class BYOL(pl.LightningModule):
-    def __init__(self):
+    def __init__(self, use_resnet: bool = False, encoder_dim: int = 256):
         super().__init__()
-        resnet = torchvision.models.resnet18()
-        self.backbone = nn.Sequential(*list(resnet.children())[:-1])
-        self.projection_head = BYOLProjectionHead(512, 1024, 256)
-        self.prediction_head = BYOLProjectionHead(256, 1024, 256)
+        if use_resnet:
+            resnet = torchvision.models.resnet18()
+            self.backbone = nn.Sequential(*list(resnet.children())[:-1])
+            self.projection_head = BYOLProjectionHead(512, 1024, 256)
+            self.prediction_head = BYOLProjectionHead(256, 1024, 256)
+        else:
+            self.backbone = SmallEncoder(encoder_dim=encoder_dim)
+            self.projection_head = BYOLProjectionHead(encoder_dim, 256, encoder_dim)
+            self.prediction_head = BYOLProjectionHead(encoder_dim, 256, 256)
 
         self.backbone_momentum = copy.deepcopy(self.backbone)
         self.projection_head_momentum = copy.deepcopy(self.projection_head)
@@ -209,6 +217,7 @@ if __name__ == "__main__":
     # collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
     # create a collate function which performs the random augmentations
     # collate_fn = lightly.data.BaseCollateFunction(transform)
+    # TODO: use imgaug https://github.com/aleju/imgaug/issues/406
     collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
 
     dataloader = th.utils.data.DataLoader(
