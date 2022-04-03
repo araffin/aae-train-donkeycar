@@ -70,6 +70,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
 parser.add_argument("-i", "--model", help="Path to saved model", type=str, required=True)
 # parser.add_argument("-n", "--n-samples", help="Number of samples", type=int, default=256)
+parser.add_argument("--seed", help="Random seed", type=int)
+parser.add_argument("-k", "--n-neighbors", help="Number of neighbors", type=int, default=3)
 args = parser.parse_args()
 
 test_transforms = torchvision.transforms.Compose(
@@ -100,5 +102,8 @@ model = BYOL.load_from_checkpoint(args.model)
 model.eval()
 embeddings, filenames = generate_embeddings(model, dataloader_test)
 
-plot_knn_examples(embeddings, filenames, args.folder)
+if args.seed is not None:
+    np.random.seed(args.seed)
+
+plot_knn_examples(embeddings, filenames, args.folder, n_neighbors=args.n_neighbors)
 plt.show()

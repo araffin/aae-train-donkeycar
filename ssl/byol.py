@@ -1,13 +1,17 @@
 import argparse
 import copy
+import time
 from typing import Tuple, Union
 
 import cv2
+import imgaug
 import numpy as np
 import pytorch_lightning as pl
 import torch as th
 import torchvision
 import torchvision.transforms as T
+from imgaug import augmenters as iaa
+from imgaug.augmenters import Sometimes
 from lightly.data import BaseCollateFunction, LightlyDataset
 from lightly.loss import NegativeCosineSimilarity
 from lightly.models.modules import BYOLProjectionHead
@@ -15,6 +19,7 @@ from lightly.models.utils import deactivate_requires_grad, update_momentum
 from lightly.transforms import GaussianBlur, RandomRotate
 from torch import nn
 
+from ae.data_loader import RandomShadows
 from config import INPUT_DIM, ROI
 
 imagenet_normalize = {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
@@ -102,14 +107,32 @@ class CustomImageCollateFunction(BaseCollateFunction):
 
         color_jitter = T.ColorJitter(cj_bright, cj_contrast, cj_sat, cj_hue)
 
+        # See https://github.com/aleju/imgaug/issues/406
+        img_aug_transform = iaa.Sequential(
+            [
+                # Add shadows (from https://github.com/OsamaMazhar/Random-Shadows-Highlights)
+                Sometimes(0.3, RandomShadows(1.0)),
+                Sometimes(0.5, iaa.GaussianBlur(sigma=(0, 2.0))),
+                Sometimes(0.5, iaa.MotionBlur(k=(3, 11), angle=(0, 360))),
+                Sometimes(0.4, iaa.Add((-25, 25), per_channel=0.5)),
+                # 20% of the corresponding size of the height and width
+                Sometimes(0.3, iaa.Cutout(nb_iterations=(1, 5), size=0.2, squared=False)),
+            ],
+            random_order=True,
+        ).augment_image
+
         transform = [
             CropAndResize(),
+            # For compat with imgaug
+            np.asarray,
+            img_aug_transform,
             RandomRotate(prob=rr_prob),
-            T.RandomHorizontalFlip(p=hf_prob),
+            # Note: the target should also be flipped horizontally
+            # T.RandomHorizontalFlip(p=hf_prob),
             # T.RandomVerticalFlip(p=vf_prob),
-            T.RandomApply([color_jitter], p=cj_prob),
-            T.RandomGrayscale(p=random_gray_scale),
-            GaussianBlur(kernel_size=kernel_size * input_size_, prob=gaussian_blur),
+            # T.RandomApply([color_jitter], p=cj_prob),
+            # T.RandomGrayscale(p=random_gray_scale),
+            # GaussianBlur(kernel_size=kernel_size * input_size_, prob=gaussian_blur),
             T.ToTensor(),
         ]
 
@@ -217,8 +240,11 @@ if __name__ == "__main__":
     # collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
     # create a collate function which performs the random augmentations
     # collate_fn = lightly.data.BaseCollateFunction(transform)
-    # TODO: use imgaug https://github.com/aleju/imgaug/issues/406
     collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
+
+    # See https://github.com/aleju/imgaug/issues/406
+    def worker_init_fn(worker_id):
+        imgaug.seed(np.random.get_state()[1][0] + worker_id)
 
     dataloader = th.utils.data.DataLoader(
         dataset,
@@ -227,13 +253,16 @@ if __name__ == "__main__":
         shuffle=True,
         drop_last=True,
         num_workers=8,
+        worker_init_fn=worker_init_fn,
     )
 
     gpus = 1 if th.cuda.is_available() else 0
 
     trainer = pl.Trainer(max_epochs=args.max_epochs, gpus=gpus, log_every_n_steps=10)
+    model_id = int(time.time())
     try:
         trainer.fit(model=model, train_dataloaders=dataloader)
     except KeyboardInterrupt:
         pass
-    trainer.save_checkpoint("logs/byol.ckpt")
+    trainer.save_checkpoint(f"logs/byol_{model_id}.ckpt")
+    print(f"Saving to logs/byol_{model_id}.ckpt")
