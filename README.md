@@ -8,7 +8,7 @@ Presentation: [Learning To Race in Hours](https://araffin.github.io/talk/learnin
 
 ## Record data
 
-1. Download and launch the donkey car simulator
+1. [Download](https://github.com/tawnkramer/gym-donkeycar/releases) and launch the donkey car simulator
 
 2. Install dependencies
 ```
