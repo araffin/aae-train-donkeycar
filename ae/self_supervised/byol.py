@@ -244,9 +244,10 @@ if __name__ == "__main__":
     parser.add_argument("-f", "--folder", help="Path to folder where images are saved", type=str, required=True)
     parser.add_argument("-n", "--max-epochs", help="Max number of epochs", type=int, default=10)
     parser.add_argument("-bs", "--batch-size", help="Minibatch size", type=int, default=256)
+    parser.add_argument("-size", "--encoder-dim", help="Embedding dimension", type=int, default=256)
     args = parser.parse_args()
 
-    model = BYOL()
+    model = BYOL(encoder_dim=args.encoder_dim)
 
     # Create a dataset from a folder containing images or videos:
     dataset = LightlyDataset(args.folder)
