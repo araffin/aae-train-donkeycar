@@ -136,7 +136,7 @@ class RandomShadows(iaa.meta.Augmenter):
         high_brightness = vision_fn.adjust_brightness(img, high_bright_factor)
         high_brightness_masked = ImageChops.multiply(high_brightness, inverted_mask_pil)
 
-        return np.array(ImageChops.add(low_brightness_masked, high_brightness_masked))
+        return np.asarray(ImageChops.add(low_brightness_masked, high_brightness_masked))
 
     def get_parameters(self):
         """See :func:`~imgaug.augmenters.meta.Augmenter.get_parameters`."""

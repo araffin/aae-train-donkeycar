@@ -3,7 +3,6 @@ import copy
 import time
 from typing import Tuple, Union
 
-import cv2
 import imgaug
 import numpy as np
 import pytorch_lightning as pl
@@ -16,7 +15,7 @@ from lightly.data import BaseCollateFunction, LightlyDataset
 from lightly.loss import NegativeCosineSimilarity
 from lightly.models.modules import BYOLProjectionHead
 from lightly.models.utils import deactivate_requires_grad, update_momentum
-from lightly.transforms import GaussianBlur, RandomRotate
+from lightly.transforms import RandomRotate  # GaussianBlur
 from torch import nn
 
 from ae.data_loader import RandomShadows
@@ -25,22 +24,32 @@ from config import INPUT_DIM, ROI
 imagenet_normalize = {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}
 
 
-class CropAndResize:
-    def __init__(self):
-        pass
+def get_test_transform() -> th.ScriptModule:
+    return th.jit.script(
+        th.nn.Sequential(
+            CropAndResize(*ROI),
+            torchvision.transforms.Normalize(
+                mean=imagenet_normalize["mean"],
+                std=imagenet_normalize["std"],
+            ),
+        )
+    )
 
-    def __call__(self, image: np.ndarray) -> np.ndarray:
-        # Crop
-        # Region of interest
-        # r = ROI
-        # image = image[int(r[1]) : int(r[1] + r[3]), int(r[0]) : int(r[0] + r[2])]
-        margin_left, margin_top, width, height = ROI
-        image = T.functional.crop(image, margin_top, margin_left, height, width)
-        im = image
+
+class CropAndResize(nn.Module):
+    def __init__(self, margin_left: int, margin_top: int, width: int, height: int):
+        self.margin_left = margin_left
+        self.margin_top = margin_top
+        self.width = width
+        self.height = height
+        super().__init__()
+
+    def forward(self, image: th.Tensor) -> th.Tensor:
+        image = T.functional.crop(image, self.margin_top, self.margin_left, self.height, self.width)
         # Hack: resize if needed, better to change conv2d  kernel size / padding
-        if ROI[2] != INPUT_DIM[1] or ROI[3] != INPUT_DIM[0]:
-            im = cv2.resize(im, (INPUT_DIM[1], INPUT_DIM[0]), interpolation=cv2.INTER_AREA)
-        return im
+        # if ROI[2] != INPUT_DIM[1] or ROI[3] != INPUT_DIM[0]:
+        #     image = T.Resize((INPUT_DIM[1], INPUT_DIM[0]))(T.functional.to_pil_image(image))
+        return image
 
 
 class CustomImageCollateFunction(BaseCollateFunction):
@@ -95,10 +104,10 @@ class CustomImageCollateFunction(BaseCollateFunction):
         normalize: dict = imagenet_normalize,
     ):
 
-        if isinstance(input_size, tuple):
-            input_size_ = max(input_size)
-        else:
-            input_size_ = input_size
+        # if isinstance(input_size, tuple):
+        #     input_size_ = max(input_size)
+        # else:
+        #     input_size_ = input_size
 
         cj_bright = cj_strength * 0.8
         cj_contrast = cj_strength * 0.8
@@ -122,7 +131,7 @@ class CustomImageCollateFunction(BaseCollateFunction):
         ).augment_image
 
         transform = [
-            CropAndResize(),
+            CropAndResize(*ROI),
             # For compat with imgaug
             np.asarray,
             img_aug_transform,
@@ -130,7 +139,7 @@ class CustomImageCollateFunction(BaseCollateFunction):
             # Note: the target should also be flipped horizontally
             # T.RandomHorizontalFlip(p=hf_prob),
             # T.RandomVerticalFlip(p=vf_prob),
-            # T.RandomApply([color_jitter], p=cj_prob),
+            T.RandomApply([color_jitter], p=cj_prob),
             # T.RandomGrayscale(p=random_gray_scale),
             # GaussianBlur(kernel_size=kernel_size * input_size_, prob=gaussian_blur),
             T.ToTensor(),
@@ -145,7 +154,11 @@ class CustomImageCollateFunction(BaseCollateFunction):
 
 
 class SmallEncoder(nn.Module):
-    def __init__(self, input_dimension: Tuple[int, int, int] = INPUT_DIM, encoder_dim: int = 256):
+    def __init__(
+        self,
+        input_dimension: Tuple[int, int, int] = INPUT_DIM,
+        encoder_dim: int = 256,
+    ):
         super().__init__()
         # Re-order
         h, w, c = input_dimension
@@ -197,19 +210,19 @@ class BYOL(pl.LightningModule):
 
         self.criterion = NegativeCosineSimilarity()
 
-    def forward(self, x):
+    def forward(self, x: th.Tensor) -> th.Tensor:
         y = self.backbone(x).flatten(start_dim=1)
         z = self.projection_head(y)
         p = self.prediction_head(z)
         return p
 
-    def forward_momentum(self, x):
+    def forward_momentum(self, x: th.Tensor) -> th.Tensor:
         y = self.backbone_momentum(x).flatten(start_dim=1)
         z = self.projection_head_momentum(y)
         z = z.detach()
         return z
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx: int) -> th.Tensor:
         update_momentum(self.backbone, self.backbone_momentum, m=0.99)
         update_momentum(self.projection_head, self.projection_head_momentum, m=0.99)
         (x0, x1), _, _ = batch
@@ -220,7 +233,8 @@ class BYOL(pl.LightningModule):
         loss = 0.5 * (self.criterion(p0, z1) + self.criterion(p1, z0))
         return loss
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> th.optim.Optimizer:
+        # TODO: try with Adam
         return th.optim.SGD(self.parameters(), lr=0.06)
 
 
@@ -240,7 +254,7 @@ if __name__ == "__main__":
     # collate_fn = SimCLRCollateFunction(input_size=INPUT_DIM[0])
     # create a collate function which performs the random augmentations
     # collate_fn = lightly.data.BaseCollateFunction(transform)
-    collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1])
+    collate_fn = CustomImageCollateFunction(input_size=INPUT_DIM[:1], cj_prob=0.0)
 
     # See https://github.com/aleju/imgaug/issues/406
     def worker_init_fn(worker_id):

@@ -1,4 +1,4 @@
-LINT_PATHS=ae/ *.py ssl/
+LINT_PATHS=ae/ *.py
 
 # Type check
 type:
