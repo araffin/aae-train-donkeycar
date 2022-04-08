@@ -10,10 +10,10 @@ setup(
     packages=[package for package in find_packages() if package.startswith("ae")],
     install_requires=requirements,
     extras_require={},
-    description="Augmented Autoencoder",
+    description="Self supervised learning for DonkeyCar sim",
     author="Antonin Raffin",
     license="MIT",
-    version="0.1.0",
+    version="0.2.0",
     python_requires=">=3.7",
     # PyPI package information.
     classifiers=[

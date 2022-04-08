@@ -10,8 +10,7 @@ MARGIN_TOP = CAMERA_HEIGHT // 3
 # ============ End of DonkeyCar Config ============ #
 
 # Camera max FPS
-FPS = 40
-
+# FPS = 40
 
 # Region Of Interest
 # r = [margin_left, margin_top, width, height]
