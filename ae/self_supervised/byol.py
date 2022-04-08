@@ -245,9 +245,13 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--max-epochs", help="Max number of epochs", type=int, default=10)
     parser.add_argument("-bs", "--batch-size", help="Minibatch size", type=int, default=256)
     parser.add_argument("-size", "--encoder-dim", help="Embedding dimension", type=int, default=256)
+    parser.add_argument("-i", "--model", help="Path to saved model", type=str)
     args = parser.parse_args()
 
-    model = BYOL(encoder_dim=args.encoder_dim, projector_dim=args.encoder_dim)
+    if args.model is not None:
+        model = BYOL.load_from_checkpoint(args.model)
+    else:
+        model = BYOL(encoder_dim=args.encoder_dim, projector_dim=args.encoder_dim)
 
     # Create a dataset from a folder containing images or videos:
     dataset = LightlyDataset(args.folder)
