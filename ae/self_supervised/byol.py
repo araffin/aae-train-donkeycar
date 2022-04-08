@@ -190,7 +190,7 @@ class SmallEncoder(nn.Module):
 
 
 class BYOL(pl.LightningModule):
-    def __init__(self, use_resnet: bool = False, encoder_dim: int = 256):
+    def __init__(self, use_resnet: bool = False, encoder_dim: int = 256, projector_dim: int = 256):
         super().__init__()
         if use_resnet:
             resnet = torchvision.models.resnet18()
@@ -199,8 +199,8 @@ class BYOL(pl.LightningModule):
             self.prediction_head = BYOLProjectionHead(256, 1024, 256)
         else:
             self.backbone = SmallEncoder(encoder_dim=encoder_dim)
-            self.projection_head = BYOLProjectionHead(encoder_dim, 256, encoder_dim)
-            self.prediction_head = BYOLProjectionHead(encoder_dim, 256, 256)
+            self.projection_head = BYOLProjectionHead(encoder_dim, 256, projector_dim)
+            self.prediction_head = BYOLProjectionHead(encoder_dim, 256, projector_dim)
 
         self.backbone_momentum = copy.deepcopy(self.backbone)
         self.projection_head_momentum = copy.deepcopy(self.projection_head)
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument("-size", "--encoder-dim", help="Embedding dimension", type=int, default=256)
     args = parser.parse_args()
 
-    model = BYOL(encoder_dim=args.encoder_dim)
+    model = BYOL(encoder_dim=args.encoder_dim, projector_dim=args.encoder_dim)
 
     # Create a dataset from a folder containing images or videos:
     dataset = LightlyDataset(args.folder)
