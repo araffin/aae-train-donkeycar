@@ -5,7 +5,7 @@ import cv2
 import gym
 import numpy as np
 
-from ae.autoencoder import load_ae
+from ae.autoencoder import load_ae, preprocess_image
 
 
 class AutoencoderWrapper(gym.Wrapper):
@@ -25,6 +25,10 @@ class AutoencoderWrapper(gym.Wrapper):
             shape=(self.autoencoder.z_size + 1,),
             dtype=np.float32,
         )
+        self.frame_num = 0
+        if os.environ.get("AE_RETRAIN_PATH"):
+            # Create folder if needed
+            os.makedirs(os.environ.get("AE_RETRAIN_PATH"), exist_ok=True)
 
     def reset(self) -> np.ndarray:
         obs = self.env.reset()
@@ -37,7 +41,22 @@ class AutoencoderWrapper(gym.Wrapper):
         obs, reward, done, infos = self.env.step(action)
         # Encode with the pre-trained AutoEncoder
         encoded_image = self.autoencoder.encode_from_raw_image(obs[:, :, ::-1])
-        # reconstructed_image = self.autoencoder.decode(encoded_image)[0]
+
+        if os.environ.get("AE_RETRAIN_PATH") is not None:
+            cropped_image = preprocess_image(obs[:, :, ::-1], convert_to_rgb=False, normalize=False)
+            reconstructed_image = self.autoencoder.decode(encoded_image)[0]
+
+            error = np.mean((cropped_image - reconstructed_image) ** 2)
+            # Threshold above which the image will be saved for retrain
+            max_ae_error = 80
+
+            if error > max_ae_error:
+                # save image with high error for retrain
+                path = os.path.join(os.environ.get("AE_RETRAIN_PATH"), f"{self.frame_num}.jpg")
+                # Convert to BGR
+                cv2.imwrite(path, obs[:, :, ::-1])
+                self.frame_num += 1
+
         # cv2.imshow("Original", obs[:, :, ::-1])
         # cv2.imshow("Reconstruction", reconstructed_image)
         # # stop if escape is pressed
