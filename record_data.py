@@ -4,6 +4,8 @@ by driving around.
 """
 import argparse
 import os
+import pickle
+from pathlib import Path
 from typing import Tuple
 
 import cv2
@@ -83,8 +85,10 @@ window = pygame.display.set_mode((400, 400), RESIZABLE)
 
 control_throttle, control_steering = 0, 0
 
-env = gym.make("donkey-avc-sparkfun-v0")
+# donkey-minimonaco-track-v0
+env = gym.make("donkey-mountain-track-v0")
 obs = env.reset()
+info_dict = {}
 for frame_num in range(total_frames):
     x, theta = 0, 0
     # Record pressed keys
@@ -107,6 +111,10 @@ for frame_num in range(total_frames):
             K_ESCAPE,  # pytype: disable=name-error
             K_q,  # pytype: disable=name-error
         ]:
+            pickle_file = Path(output_folder) / "infos.pkl"
+            print(f"Writing info to {pickle_file}")
+            with open(pickle_file, "wb") as f:
+                pickle.dump(info_dict, f)
             env.close()
             exit()
 
@@ -120,12 +128,16 @@ for frame_num in range(total_frames):
     action = np.array([-control_steering, control_throttle])
 
     for _ in range(frame_skip):
-        obs, _, done, _ = env.step(action)
+        obs, _, done, info = env.step(action)
         if done:
             break
     if render:
         env.render()
     path = os.path.join(output_folder, f"{frame_num}.jpg")
+    info_dict[frame_num] = {
+        "cte": info["cte"],
+        "car": info["car"],  # (self.roll, self.pitch, self.yaw),
+    }
     # Convert to BGR
     cv2.imwrite(path, obs[:, :, ::-1])
     if done:
