@@ -35,7 +35,7 @@ def get_image_augmenter() -> iaa.Sequential:
     """
     return iaa.Sequential(
         [
-            Sometimes(0.5, iaa.Fliplr(1)),
+            # Sometimes(0.5, iaa.Fliplr(1)),
             # Add shadows (from https://github.com/OsamaMazhar/Random-Shadows-Highlights)
             Sometimes(0.3, RandomShadows(1.0)),
             # Sometimes(0.3, iaa.MultiplyBrightness((0.8, 1.2))),

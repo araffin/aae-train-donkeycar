@@ -17,11 +17,18 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from ae.autoencoder import Autoencoder, preprocess_image, preprocess_input
+from ae.data_loader import get_image_augmenter
 from ae.match_datasets import prepare_datasets
 
 
 class RacingDataset(Dataset):
-    def __init__(self, teacher: Autoencoder, teacher_folder: str, student_folder: str):
+    def __init__(
+        self,
+        teacher: Autoencoder,
+        teacher_folder: str,
+        student_folder: str,
+        augment: bool = True,
+    ):
         datasets, names = prepare_datasets(teacher, [teacher_folder, student_folder], normalize=False)
         self.teacher = teacher
         self.teacher_folder = teacher_folder
@@ -30,6 +37,9 @@ class RacingDataset(Dataset):
         self.student_dataset = datasets[1]
         self.names = names[1]
 
+        self.augmenter = None
+        if augment:
+            self.augmenter = get_image_augmenter()
         # Create KNN with first dataset
         self.knn = NearestNeighbors(n_neighbors=1, algorithm="ball_tree").fit(self.teacher_dataset)
 
@@ -46,8 +56,11 @@ class RacingDataset(Dataset):
         target = self.teacher_dataset[neighbor_indices[0]][1:]
 
         img_name = os.path.join(self.student_folder, f"{self.names[idx]}.jpg")
+
         image = preprocess_image(cv2.imread(img_name), convert_to_rgb=False, normalize=False)
-        # Normalize
+        if self.augmenter is not None:
+            image = self.augmenter.augment_image(image)
+        # Normalize and channel first
         image = preprocess_input(image.astype(np.float32), mode="rl")
         return {"image": th.as_tensor(image), "target": th.as_tensor(target).float()}
 
