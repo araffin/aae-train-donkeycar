@@ -86,7 +86,7 @@ window = pygame.display.set_mode((400, 400), RESIZABLE)
 control_throttle, control_steering = 0, 0
 
 # donkey-minimonaco-track-v0
-env = gym.make("donkey-mountain-track-v0")
+env = gym.make("donkey-generated-roads-v0")
 obs = env.reset()
 info_dict = {}
 for frame_num in range(total_frames):
