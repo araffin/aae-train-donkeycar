@@ -4,6 +4,7 @@
 import random
 import time
 from multiprocessing import Process, Queue
+from typing import Dict, List, Optional, Tuple
 
 import cv2
 import imgaug
@@ -147,24 +148,25 @@ class DataLoader:
     """
     A Custom dataloader to preprocessing images and feed them to the network.
 
-    :param minibatchlist: ([np.array]) list of observations indices (grouped per minibatch)
-    :param images_path: (np.array) Array of path to images
-    :param n_workers: (int) number of preprocessing worker (load and preprocess each image)
-    :param infinite_loop: (bool) whether to have an iterator that can be resetted, set to False, it
-    :param max_queue_len: (int) Max number of minibatches that can be preprocessed at the same time
-    :param is_training: (bool)
-    :param augment: (bool) Whether to use image augmentation or not
+    :param minibatchlist: list of observations indices (grouped per minibatch)
+    :param images_path: Array of path to images
+    :param n_workers: number of preprocessing worker (load and preprocess each image)
+    :param infinite_loop: whether to have an iterator that can be resetted, set to False, it
+    :param max_queue_len: Max number of minibatches that can be preprocessed at the same time
+    :param is_training:
+    :param augment: Whether to use image augmentation or not
     """
 
     def __init__(
         self,
-        minibatchlist,
-        images_path,
-        n_workers=1,
-        infinite_loop=True,
-        max_queue_len=4,
-        is_training=False,
-        augment=True,
+        minibatchlist: List[np.ndarray],
+        images_path: List[str],
+        n_workers: int = 1,
+        infinite_loop: bool = True,
+        max_queue_len: int = 4,
+        is_training: bool = False,
+        augment: bool = True,
+        targets_path: Optional[Dict[str, str]] = None,
     ):
         super().__init__()
         self.n_workers = n_workers
@@ -176,6 +178,7 @@ class DataLoader:
         self.queue = Queue(max_queue_len)
         self.process = None
         self.augmenter = None
+        self.targets_path = targets_path
         if augment:
             self.augmenter = get_image_augmenter()
         self.start_process()
@@ -220,11 +223,14 @@ class DataLoader:
                     images = self.images_path[self.minibatchlist[minibatch_idx]]
 
                     if self.n_workers <= 1:
-                        batch = [self._make_batch_element(image_path, self.augmenter) for image_path in images]
+                        batch = [
+                            self._make_batch_element(image_path, self.augmenter, self.targets_path) for image_path in images
+                        ]
 
                     else:
                         batch = parallel(
-                            delayed(self._make_batch_element)(image_path, self.augmenter) for image_path in images
+                            delayed(self._make_batch_element)(image_path, self.augmenter, self.targets_path)
+                            for image_path in images
                         )
 
                     batch_input = np.concatenate([batch_elem[0] for batch_elem in batch], axis=0)
@@ -241,7 +247,7 @@ class DataLoader:
                 self.queue.put(None)
 
     @classmethod
-    def _make_batch_element(cls, image_path, augmenter=None):
+    def _make_batch_element(cls, image_path, augmenter=None, targets_path=None) -> Tuple[np.ndarray, np.ndarray]:
         """
         :param image_path: (str) path to an image
         :param augmenter: (iaa.Sequential) Image augmenter
@@ -263,13 +269,18 @@ class DataLoader:
             input_img = preprocess_input(input_img.astype(np.float32), mode="rl")
             input_img = input_img.reshape((1,) + input_img.shape)
 
+        if targets_path is not None:
+            target_img = cv2.imread(targets_path[image_path])
+        else:
+            target_img = im
+
         if postprocessor.flipped:
-            target_img = preprocess_image(im, normalize=False)
+            target_img = preprocess_image(target_img, normalize=False)
             target_img = iaa.Fliplr(1).augment_image(target_img)
             target_img = preprocess_input(target_img.astype(np.float32), mode="rl")
             target_img = target_img.reshape((1,) + target_img.shape)
         else:
-            target_img = preprocess_image(im)
+            target_img = preprocess_image(target_img)
             target_img = target_img.reshape((1,) + target_img.shape)
             if augmenter is None:
                 input_img = target_img.copy()

@@ -5,6 +5,7 @@ import argparse
 import os
 import random
 import time
+from pathlib import Path
 
 import cv2  # pytype: disable=import-error
 import numpy as np
@@ -29,6 +30,7 @@ parser.add_argument("--learning-rate", help="Learning rate", type=float, default
 parser.add_argument("--n-epochs", help="Number of epochs", type=int, default=10)
 parser.add_argument("--verbose", help="Verbosity", type=int, default=1)
 parser.add_argument("--num-threads", help="Number of threads for PyTorch (-1 to use default)", default=-1, type=int)
+parser.add_argument("--use-masks", action="store_true", default=False, help="Use segmentation masks as target")
 args = parser.parse_args()
 
 if args.num_threads > 0:
@@ -44,11 +46,18 @@ if args.seed is not None:
 
 
 folders, images = [], []
+targets_path = {} if args.use_masks else None
 for folder in args.folders:
     if not folder.endswith("/"):
         folder += "/"
     folders.append(folder)
     images_ = [folder + im for im in os.listdir(folder) if im.endswith(".jpg")]
+    if targets_path is not None:
+        image_folder = Path(folder)
+        mask_folder = image_folder.parent / f"masks_{image_folder.name}"
+        for image_path in images_:
+            targets_path[image_path] = str(mask_folder / Path(image_path).name)
+
     print(f"{folder}: {len(images_)} images")
     images.append(images_)
 
@@ -72,7 +81,10 @@ minibatchlist = [
     for start_idx in range(0, len(indices) - args.batch_size + 1, args.batch_size)
 ]
 
-data_loader = DataLoader(minibatchlist, images, n_workers=2)
+if targets_path is not None:
+    print("Using segmentation masks")
+
+data_loader = DataLoader(minibatchlist, images, n_workers=2, targets_path=targets_path)
 
 if args.ae_path is not None:
     print("Continuing training")
