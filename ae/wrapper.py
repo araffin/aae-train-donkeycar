@@ -57,12 +57,10 @@ class AutoencoderWrapper(gym.Wrapper):
                 cv2.imwrite(path, obs[:, :, ::-1])
                 self.frame_num += 1
 
+        # reconstructed_image = self.autoencoder.decode(encoded_image)[0]
         # cv2.imshow("Original", obs[:, :, ::-1])
         # cv2.imshow("Reconstruction", reconstructed_image)
-        # # stop if escape is pressed
-        # k = cv2.waitKey(0) & 0xFF
-        # if k == 27:
-        #     pass
+        # cv2.waitKey(1)
         speed = infos["speed"]
         new_obs = np.concatenate([encoded_image.flatten(), [speed]])
 
