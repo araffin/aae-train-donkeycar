@@ -5,6 +5,7 @@ import argparse
 import os
 import random
 import time
+from typing import Optional
 
 import cv2  # pytype: disable=import-error
 import numpy as np
@@ -28,8 +29,17 @@ class RacingDataset(Dataset):
         teacher_folder: str,
         student_folder: str,
         augment: bool = True,
+        ae_mask: Optional[Autoencoder] = None,
     ):
-        datasets, names = prepare_datasets(teacher, [teacher_folder, student_folder], normalize=False)
+        # Do not use autoencoder for matching
+        self.weight_autoencoder = 0.001 if ae_mask is not None else 1
+        datasets, names = prepare_datasets(
+            teacher,
+            [teacher_folder, student_folder],
+            normalize=False,
+            ae_mask=ae_mask,
+            weight_autoencoder=self.weight_autoencoder,
+        )
         self.teacher = teacher
         self.teacher_folder = teacher_folder
         self.student_folder = student_folder
@@ -53,7 +63,9 @@ class RacingDataset(Dataset):
         _, neighbor_indices = self.knn.kneighbors([self.student_dataset[idx]])
         neighbor_indices = neighbor_indices.flatten()
         # Remove CTE from target
-        target = self.teacher_dataset[neighbor_indices[0]][1:]
+        target = self.teacher_dataset[neighbor_indices[0]][: self.teacher.z_size]
+        # Rescale
+        target *= 1 / self.weight_autoencoder
 
         img_name = os.path.join(self.student_folder, f"{self.names[idx]}.jpg")
 
@@ -68,6 +80,7 @@ class RacingDataset(Dataset):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-ae", "--ae-path", help="Path to saved autoencoder", type=str, required=True)
+    parser.add_argument("-ae-mask", "--ae-mask-path", help="Path to saved AE for segmentation", type=str)
     parser.add_argument(
         "-s", "--student-folder", help="Path to folder containing images for training", type=str, required=True
     )
@@ -99,13 +112,18 @@ if __name__ == "__main__":
     teacher.to(teacher.device)
     student.to(student.device)
 
+    ae_mask = None
+    if args.ae_mask_path is not None:
+        ae_mask = Autoencoder.load(args.ae_mask_path)
+        ae_mask.to(student.device)
+
     best_loss = np.inf
     ae_id = int(time.time())
     save_path = f"logs/match_ae-{args.z_size}_{ae_id}.pkl"
     best_model_path = f"logs/match_ae-{args.z_size}_{ae_id}_best.pkl"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-    dataset = RacingDataset(teacher, args.teacher_folder, args.student_folder)
+    dataset = RacingDataset(teacher, args.teacher_folder, args.student_folder, ae_mask=ae_mask)
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
 
     try:
