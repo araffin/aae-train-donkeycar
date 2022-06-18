@@ -112,9 +112,10 @@ if __name__ == "__main__":
     image = read_image(args.input_images[0])
     pred_mask, pred_seg = compute_mask(image, args.additional_labels)
 
-    plot(image, pred_mask, "Image1")
-    plt.figure("Segmentation")
-    plt.imshow(pred_seg)
+    if args.display or len(args.input_images) > 1:
+        plot(image, pred_mask, "Image1")
+        plt.figure("Segmentation")
+        plt.imshow(pred_seg)
 
     # Reuse same filename for the mask
     filename = Path(args.input_images[0]).name

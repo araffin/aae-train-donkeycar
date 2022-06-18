@@ -76,7 +76,7 @@ python -m ae.segmentation -f logs/match_monaco -o logs/masks_monaco/
 
 Inspect single image and add additional masks
 ```
-python -m ae.segmentation -i logs/match_monaco/311.jpg -l field floor
+python -m ae.segmentation -i logs/match_monaco/311.jpg -l field floor --display
 ```
 
 ## Match Dataset (align data)
