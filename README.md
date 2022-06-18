@@ -90,3 +90,9 @@ Train encoder:
 ```
 python -m ae.train_match -ae logs/ae-32_monaco.pkl -t logs/match_monaco -s logs/match_generated/ -bs 8 --n-epochs 200 -ae-mask logs/ae-32_masks_multi_track.pkl
 ```
+
+
+Convert sequence of images to video:
+```
+ffmpeg -i match_warren/%01d.jpg -c:v libx264 -vf fps=25 -pix_fmt yuv420p warren.mp4
+```
