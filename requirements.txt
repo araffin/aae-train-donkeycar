@@ -8,3 +8,6 @@ torch
 torchvision
 tqdm
 imgaug>=0.4.0
+scikit-learn
+transformers
+rich
