@@ -32,7 +32,8 @@ class RacingDataset(Dataset):
         ae_mask: Optional[Autoencoder] = None,
     ):
         # Do not use autoencoder for matching
-        self.weight_autoencoder = 0.001 if ae_mask is not None else 1
+        # FIXME: weight seems to be wrong
+        self.weight_autoencoder = 0.5 if ae_mask is not None else 1
         datasets, names = prepare_datasets(
             teacher,
             [teacher_folder, student_folder],
@@ -65,7 +66,8 @@ class RacingDataset(Dataset):
         # Remove CTE from target
         target = self.teacher_dataset[neighbor_indices[0]][: self.teacher.z_size]
         # Rescale
-        target *= 1 / self.weight_autoencoder
+        # FIXME: this seems to be buggy
+        target /= self.weight_autoencoder
         # TODO: try keep the old embedding too (so the model still work on the initial track)
         img_name = os.path.join(self.student_folder, f"{self.names[idx]}.jpg")
 

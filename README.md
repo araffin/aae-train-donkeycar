@@ -86,6 +86,8 @@ Inspect matched data:
 python -m ae.match_datasets -ae logs/ae-32_masks_multi_track.pkl -f logs/match_monaco logs/match_generated -cte 10
 ```
 
+TODO: regenerate masks after matching datasets
+
 Train encoder:
 ```
 python -m ae.train_match -ae logs/ae-32_monaco.pkl -t logs/match_monaco -s logs/match_generated/ -bs 8 --n-epochs 200 -ae-mask logs/ae-32_masks_multi_track.pkl
